@@ -1,53 +1,24 @@
 "use client";
 
-import { useState } from "react";
-import { collection, addDoc, serverTimestamp } from "firebase/firestore";
+import { useState, useEffect } from "react";
+import { collection, addDoc, serverTimestamp, onSnapshot, query } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import Link from "next/link";
 
-/* ── Menu Data ── */
-const MENU_ITEMS = [
-  {
-    id: "manggoSetupRoti",
-    name: "Manggo Setup Roti",
-    price: 10000,
-    priceLabel: "10K",
-    color: "yellow" as const,
-    emoji: "🥭🍞",
-    person: "Lydia",
-    phone: "0878-6698-4662",
-  },
-  {
-    id: "popbreadCaramel",
-    name: "Popbread Caramel",
-    price: 8000,
-    priceLabel: "8K",
-    color: "blue" as const,
-    emoji: "🍞🍯",
-    person: "Natalia",
-    phone: "0852-1156-9754",
-  },
-  {
-    id: "sedapRollPaperRice",
-    name: "Sedap Roll Paper Rice",
-    price: 10000,
-    priceLabel: "10K",
-    color: "yellow" as const,
-    emoji: "🍙✨",
-    person: "Selly",
-    phone: "0896-2754-2052",
-  },
-  {
-    id: "pudingChocolate",
-    name: "Puding Chocolate",
-    price: 8000,
-    priceLabel: "8K",
-    color: "blue" as const,
-    emoji: "🍫🍮",
-    person: "Huga",
-    phone: "0821-4417-1062",
-  },
-];
+/* ── Types ── */
+export interface Product {
+  id: string;
+  name: string;
+  person: string;
+  phone: string;
+  emoji: string;
+  noteColor: string;
+  priceLabel: string;
+  price: number;
+  imageBase64?: string;
+}
+
+// Products will be fetched from Firestore
 
 /* ── Stars Background ── */
 function StarsBackground() {
@@ -65,18 +36,35 @@ function StarsBackground() {
 /* ── Main Page ── */
 export default function HomePage() {
   const [customerName, setCustomerName] = useState("");
-  const [quantities, setQuantities] = useState<Record<string, number>>({
-    manggoSetupRoti: 0,
-    popbreadCaramel: 0,
-    sedapRollPaperRice: 0,
-    pudingChocolate: 0,
-  });
+  const [customerGrade, setCustomerGrade] = useState("10");
+  const [customerMajor, setCustomerMajor] = useState("PPLG");
+  const [products, setProducts] = useState<Product[]>([]);
+  const [quantities, setQuantities] = useState<Record<string, number>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
 
+  /* Fetch Products from Firestore */
+  useEffect(() => {
+    const q = query(collection(db, "products"));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const prodsData: Product[] = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
+      setProducts(prodsData);
+
+      // Initialize quantities state for new products if not exist
+      setQuantities(prev => {
+        const newQuantities = { ...prev };
+        prodsData.forEach(p => {
+          if (newQuantities[p.id] === undefined) newQuantities[p.id] = 0;
+        });
+        return newQuantities;
+      });
+    });
+    return () => unsubscribe();
+  }, []);
+
   /* Calculate total price */
-  const totalPrice = MENU_ITEMS.reduce(
+  const totalPrice = products.reduce(
     (sum, item) => sum + item.price * (quantities[item.id] || 0),
     0
   );
@@ -111,9 +99,12 @@ export default function HomePage() {
 
     setIsSubmitting(true);
 
+    const customerClass = `${customerGrade} ${customerMajor === "MPLB1" ? "MPLB 1" : customerMajor === "MPLB2" ? "MPLB 2" : customerMajor}`;
+
     try {
       await addDoc(collection(db, "orders"), {
         customerName: customerName.trim(),
+        customerClass,
         items: { ...quantities },
         totalPrice,
         timestamp: serverTimestamp(),
@@ -121,11 +112,11 @@ export default function HomePage() {
 
       setShowSuccess(true);
       setCustomerName("");
-      setQuantities({
-        manggoSetupRoti: 0,
-        popbreadCaramel: 0,
-        sedapRollPaperRice: 0,
-        pudingChocolate: 0,
+      // Reset quantities
+      setQuantities(prev => {
+        const reset: Record<string, number> = {};
+        Object.keys(prev).forEach(k => reset[k] = 0);
+        return reset;
       });
     } catch (err) {
       console.error("Error submitting order:", err);
@@ -170,25 +161,69 @@ export default function HomePage() {
               onChange={(e) => setCustomerName(e.target.value)}
               maxLength={50}
             />
+
+            <div style={{ display: "flex", gap: "10px", marginTop: "1rem" }}>
+              <div style={{ flex: 1 }}>
+                <label className="name-input-label" style={{ fontSize: "0.9rem" }}>Pilih Kelas</label>
+                <select
+                  className="name-input"
+                  style={{ marginTop: "0.5rem" }}
+                  value={customerGrade}
+                  onChange={(e) => setCustomerGrade(e.target.value)}
+                >
+                  <option value="10">10</option>
+                  <option value="11">11</option>
+                  <option value="12">12</option>
+                </select>
+              </div>
+              <div style={{ flex: 1 }}>
+                <label className="name-input-label" style={{ fontSize: "0.9rem" }}>Pilih Jurusan</label>
+                <select
+                  className="name-input"
+                  style={{ marginTop: "0.5rem" }}
+                  value={customerMajor}
+                  onChange={(e) => setCustomerMajor(e.target.value)}
+                >
+                  <option value="PPLG">PPLG</option>
+                  <option value="MPLB1">MPLB 1</option>
+                  <option value="MPLB2">MPLB 2</option>
+                  <option value="BR">BR</option>
+                  <option value="AKL">AKL</option>
+                </select>
+              </div>
+            </div>
           </div>
         </div>
 
         {/* ── Menu Grid ── */}
         <div className="menu-grid">
-          {MENU_ITEMS.map((item) => (
+          {products.map((item) => (
             <div
               key={item.id}
-              className={`sticky-note sticky-note--${item.color}`}
+              className={`sticky-note summary-note--${item.noteColor}`}
+              style={{ display: "flex", flexDirection: "column" }}
             >
-              <span className="note-emoji">{item.emoji}</span>
+              {item.imageBase64 ? (
+                <img
+                  src={item.imageBase64}
+                  alt={item.name}
+                  style={{ width: "100%", height: "140px", objectFit: "cover", borderRadius: "8px", marginBottom: "0.8rem", background: "white" }}
+                />
+              ) : (
+                <div style={{ width: "100%", height: "140px", background: "rgba(0,0,0,0.15)", borderRadius: "8px", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: "0.8rem", fontSize: "3rem" }}>
+                  {item.emoji}
+                </div>
+              )}
+
               <div className="note-name">{item.name}</div>
               <div className="note-person">📞 {item.person} · {item.phone}</div>
-              <span className="note-price-badge">Rp {item.priceLabel}</span>
+              <span className="note-price-badge" style={{ background: "rgba(0,0,0,0.3)", color: "white", width: "fit-content" }}>Rp {item.priceLabel}</span>
 
-              <div className="quantity-controls">
+              <div className="quantity-controls" style={{ marginTop: "auto", paddingTop: "0.5rem" }}>
                 <button
                   type="button"
                   className="qty-btn"
+                  style={{ background: "rgba(255,255,255,0.2)", color: "inherit" }}
                   onClick={() => decrement(item.id)}
                   aria-label={`Kurangi ${item.name}`}
                 >
@@ -198,6 +233,7 @@ export default function HomePage() {
                 <button
                   type="button"
                   className="qty-btn"
+                  style={{ background: "rgba(255,255,255,0.2)", color: "inherit" }}
                   onClick={() => increment(item.id)}
                   aria-label={`Tambah ${item.name}`}
                 >
@@ -255,18 +291,6 @@ export default function HomePage() {
         {/* ── Footer ── */}
         <div className="footer">
           <p>© 2026 XI-PPLG Bazar</p>
-          <p style={{ marginTop: "0.3rem" }}>
-            <Link
-              href="/admin"
-              style={{
-                color: "rgba(255,255,255,0.4)",
-                textDecoration: "none",
-                fontSize: "0.75rem",
-              }}
-            >
-              Admin Dashboard →
-            </Link>
-          </p>
         </div>
       </div>
 
