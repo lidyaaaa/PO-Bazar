@@ -21,12 +21,7 @@ interface Order {
   id: string;
   customerName: string;
   customerClass?: string;
-  items: {
-    manggoSetupRoti: number;
-    popbreadCaramel: number;
-    sedapRollPaperRice: number;
-    pudingChocolate: number;
-  };
+  items: Record<string, number>;
   totalPrice: number;
   timestamp: Timestamp | null;
 }
@@ -43,49 +38,6 @@ export interface Product {
   imageBase64?: string;
 }
 
-/* ── Menu Meta ── */
-const MENU_META = [
-  {
-    id: "manggoSetupRoti" as const,
-    name: "Manggo Setup Roti",
-    person: "Lydia",
-    phone: "0878-6698-4662",
-    emoji: "🥭🍞",
-    noteColor: "orange",
-    priceLabel: "10K",
-    price: 10000,
-  },
-  {
-    id: "popbreadCaramel" as const,
-    name: "Popbread Caramel",
-    person: "Natalia",
-    phone: "0852-1156-9754",
-    emoji: "🍞🍯",
-    noteColor: "green",
-    priceLabel: "8K",
-    price: 8000,
-  },
-  {
-    id: "sedapRollPaperRice" as const,
-    name: "Sedap Roll Paper Rice",
-    person: "Selly",
-    phone: "0896-2754-2052",
-    emoji: "🍙✨",
-    noteColor: "purple",
-    priceLabel: "10K",
-    price: 10000,
-  },
-  {
-    id: "pudingChocolate" as const,
-    name: "Puding Chocolate",
-    person: "Huga",
-    phone: "0821-4417-1062",
-    emoji: "🍫🍮",
-    noteColor: "pink",
-    priceLabel: "8K",
-    price: 8000,
-  },
-];
 
 /* ── Stars Background ── */
 function StarsBackground() {
@@ -165,15 +117,8 @@ export default function AdminPage() {
     const unsubscribeProducts = onSnapshot(
       qProducts,
       async (snapshot) => {
-        if (snapshot.empty) {
-          // Seed products
-          for (const item of MENU_META) {
-            await setDoc(doc(db, "products", item.id), item);
-          }
-        } else {
-          const prodsData: Product[] = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
-          setProducts(prodsData);
-        }
+        const prodsData: Product[] = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
+        setProducts(prodsData);
       },
       (error) => {
         console.error("Firestore products error:", error);
@@ -408,24 +353,10 @@ export default function AdminPage() {
   }
 
   /* Calculate totals per menu */
-  const totals = {
-    manggoSetupRoti: orders.reduce(
-      (sum, o) => sum + (o.items?.manggoSetupRoti || 0),
-      0
-    ),
-    popbreadCaramel: orders.reduce(
-      (sum, o) => sum + (o.items?.popbreadCaramel || 0),
-      0
-    ),
-    sedapRollPaperRice: orders.reduce(
-      (sum, o) => sum + (o.items?.sedapRollPaperRice || 0),
-      0
-    ),
-    pudingChocolate: orders.reduce(
-      (sum, o) => sum + (o.items?.pudingChocolate || 0),
-      0
-    ),
-  };
+  const totals: Record<string, number> = {};
+  products.forEach((p) => {
+    totals[p.id] = orders.reduce((sum, o) => sum + (o.items?.[p.id] || 0), 0);
+  });
 
   const totalAllItems = Object.values(totals).reduce((a, b) => a + b, 0);
   const totalRevenue = orders.reduce((sum, o) => sum + (o.totalPrice || 0), 0);
@@ -468,7 +399,7 @@ export default function AdminPage() {
           <>
             {/* ── Summary Grid ── */}
             <div className="summary-grid">
-              {MENU_META.map((menu) => (
+              {products.map((menu) => (
                 <div
                   key={menu.id}
                   className={`summary-note summary-note--${menu.noteColor}`}
@@ -480,7 +411,7 @@ export default function AdminPage() {
                     👤 {menu.person} · 📞 {menu.phone}
                   </div>
                   <div className="summary-count">
-                    {totals[menu.id]}
+                    {totals[menu.id] || 0}
                     <span className="summary-unit"> porsi</span>
                   </div>
                 </div>
