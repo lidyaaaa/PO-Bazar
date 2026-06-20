@@ -42,6 +42,7 @@ export default function HomePage() {
   const [quantities, setQuantities] = useState<Record<string, number>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
 
   /* Fetch Products from Firestore */
@@ -83,8 +84,8 @@ export default function HomePage() {
     }));
   }
 
-  /* Submit order */
-  async function handleSubmit() {
+  /* Validate and show confirmation modal */
+  function handleSubmit() {
     setErrorMsg("");
 
     if (!customerName.trim()) {
@@ -97,6 +98,11 @@ export default function HomePage() {
       return;
     }
 
+    setShowConfirm(true);
+  }
+
+  /* Actual submit to Firestore */
+  async function executeSubmit() {
     setIsSubmitting(true);
 
     const customerClass = `${customerGrade} ${customerMajor === "MPLB1" ? "MPLB 1" : customerMajor === "MPLB2" ? "MPLB 2" : customerMajor}`;
@@ -314,6 +320,70 @@ export default function HomePage() {
             >
               Oke, Mantap! 👍
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Confirmation Modal ── */}
+      {showConfirm && (
+        <div className="toast-overlay" onClick={() => setShowConfirm(false)}>
+          <div className="toast-card" style={{ maxWidth: "420px", color: "var(--text-dark)" }} onClick={(e) => e.stopPropagation()}>
+            <span className="toast-emoji">🤔</span>
+            <div className="toast-title" style={{ color: "var(--wood-dark)" }}>Konfirmasi Pesanan</div>
+            
+            <div style={{ textAlign: "left", margin: "1.5rem 0", background: "rgba(0,0,0,0.03)", padding: "1.2rem", borderRadius: "12px", border: "1px dashed rgba(0,0,0,0.1)", fontSize: "0.95rem" }}>
+              <div style={{ marginBottom: "0.6rem" }}>
+                <span style={{ color: "#666" }}>Nama Pemesan:</span>
+                <div style={{ fontWeight: "700", fontSize: "1.1rem" }}>{customerName}</div>
+              </div>
+              <div style={{ marginBottom: "0.8rem" }}>
+                <span style={{ color: "#666" }}>Kelas:</span>
+                <div style={{ fontWeight: "700" }}>{customerGrade} {customerMajor === "MPLB1" ? "MPLB 1" : customerMajor === "MPLB2" ? "MPLB 2" : customerMajor}</div>
+              </div>
+              
+              <div style={{ borderTop: "1px solid rgba(0,0,0,0.1)", paddingTop: "0.8rem" }}>
+                <span style={{ color: "#666", fontWeight: "600", display: "block", marginBottom: "0.4rem" }}>Menu yang dipesan:</span>
+                <ul style={{ listStyleType: "none", paddingLeft: 0 }}>
+                  {products.map((p) => {
+                    const qty = quantities[p.id] || 0;
+                    if (qty === 0) return null;
+                    return (
+                      <li key={p.id} style={{ display: "flex", justifyContent: "space-between", marginBottom: "0.3rem", fontWeight: "500" }}>
+                        <span>{p.emoji} {p.name}</span>
+                        <span>{qty} Porsi</span>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+
+              <div style={{ borderTop: "1px solid rgba(0,0,0,0.1)", paddingTop: "0.8rem", marginTop: "0.8rem", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span style={{ fontWeight: "700" }}>Total Bayar:</span>
+                <span style={{ fontWeight: "800", fontSize: "1.3rem", color: "var(--wood-dark)" }}>Rp {totalPrice.toLocaleString("id-ID")}</span>
+              </div>
+            </div>
+
+            <div style={{ display: "flex", gap: "10px" }}>
+              <button
+                type="button"
+                className="toast-btn"
+                style={{ flex: 1, padding: "0.7rem 1rem" }}
+                onClick={() => {
+                  setShowConfirm(false);
+                  executeSubmit();
+                }}
+              >
+                Ya, Kirim! 👍
+              </button>
+              <button
+                type="button"
+                className="toast-btn"
+                style={{ flex: 1, padding: "0.7rem 1rem", background: "linear-gradient(135deg, #757575, #424242)", boxShadow: "0 4px 12px rgba(0, 0, 0, 0.15)" }}
+                onClick={() => setShowConfirm(false)}
+              >
+                Cek Lagi
+              </button>
+            </div>
           </div>
         </div>
       )}
