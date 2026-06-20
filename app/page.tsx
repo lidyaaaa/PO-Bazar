@@ -140,7 +140,7 @@ export default function HomePage() {
             <br />
             BAZAR?
           </h1>
-          <div className="title-subtitle">🍴 PRE ORDER FOR 22 JUNI 2026 🍴</div>
+          <div className="title-subtitle">🍴 PRE ORDER FOR 23 JUNI 2026 🍴</div>
         </div>
 
         {/* ── Checkered Accent ── */}
